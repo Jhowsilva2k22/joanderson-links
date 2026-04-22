@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { BarChart2, MousePointerClick, Smartphone, Globe } from "lucide-react"
-import type { Profile, Link as LinkRow } from "@/lib/supabase/types"
+import type { Profile, Link as LinkRow, Click } from "@/lib/supabase/types"
 
 interface ClickStat {
   link_id: string
@@ -59,22 +59,25 @@ export default function AnalyticsPage() {
       const since = new Date()
       since.setDate(since.getDate() - 30)
 
-      const { data: clicksData } = await supabase
+      const { data: clicksRaw } = await supabase
         .from("clicks")
         .select("*")
         .in("link_id", linkIds)
         .gte("clicked_at", since.toISOString())
 
-      if (!clicksData) {
+      if (!clicksRaw) {
         setLoading(false)
         return
       }
 
-      setTotalClicks(clicksData.length)
+      // Cast explícito para evitar inferência never do Supabase TypeScript
+      const clicks = clicksRaw as Click[]
+
+      setTotalClicks(clicks.length)
 
       // Cliques por link
       const byLink: Record<string, number> = {}
-      clicksData.forEach((c) => {
+      clicks.forEach((c) => {
         byLink[c.link_id] = (byLink[c.link_id] ?? 0) + 1
       })
 
@@ -90,16 +93,16 @@ export default function AnalyticsPage() {
       )
 
       // Mobile vs desktop
-      const mobileCount = clicksData.filter((c) => c.device === "mobile").length
+      const mobileCount = clicks.filter((c) => c.device === "mobile").length
       setMobileRatio(
-        clicksData.length > 0
-          ? Math.round((mobileCount / clicksData.length) * 100)
+        clicks.length > 0
+          ? Math.round((mobileCount / clicks.length) * 100)
           : 0
       )
 
       // Origem mais frequente
       const bySource: Record<string, number> = {}
-      clicksData.forEach((c) => {
+      clicks.forEach((c) => {
         const s = c.source ?? "direto"
         bySource[s] = (bySource[s] ?? 0) + 1
       })
@@ -115,7 +118,7 @@ export default function AnalyticsPage() {
           d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
         ] = 0
       }
-      clicksData.forEach((c) => {
+      clicks.forEach((c) => {
         const d = new Date(c.clicked_at)
         const key = d.toLocaleDateString("pt-BR", {
           day: "2-digit",
