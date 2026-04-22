@@ -2,16 +2,19 @@ import { createClient } from "@/lib/supabase/server"
 import { ThemeToggle } from "@/components/ThemeToggle"
 import Image from "next/image"
 import type { Metadata } from "next"
+import type { Profile } from "@/lib/supabase/types"
 
 export const revalidate = 60
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createClient()
-  const { data: profile } = await supabase
+  // select(*) evita inferência never com client tipado
+  const { data } = await supabase
     .from("profiles")
-    .select("name, bio, avatar_url")
+    .select("*")
     .limit(1)
     .single()
+  const profile = data as Profile | null
   return {
     title: profile?.name ?? "Link in Bio",
     description: profile?.bio ?? "",
@@ -21,13 +24,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PublicPage() {
   const supabase = await createClient()
 
-  const { data: profile } = await supabase
+  const { data: profileData } = await supabase
     .from("profiles")
     .select("*")
     .limit(1)
     .single()
 
-  const { data: links } = await supabase
+  const profile = profileData as Profile | null
+
+  const { data: linksData } = await supabase
     .from("links")
     .select("*")
     .eq("active", true)
@@ -41,8 +46,9 @@ export default async function PublicPage() {
     )
   }
 
-  const socialLinks = links?.filter((l) => l.category === "social") ?? []
-  const productLinks = links?.filter((l) => l.category !== "social") ?? []
+  const links = (linksData ?? []) as import("@/lib/supabase/types").Link[]
+  const socialLinks = links.filter((l) => l.category === "social")
+  const productLinks = links.filter((l) => l.category !== "social")
 
   return (
     <main className="min-h-screen flex flex-col" style={{ background: profile.bg_color || "var(--background)" }}>
