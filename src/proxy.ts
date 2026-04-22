@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
-export async function middleware(request: NextRequest) {
+// Next.js 16: o arquivo se chama proxy.ts e exporta a função `proxy`
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -32,12 +33,14 @@ export async function middleware(request: NextRequest) {
   const isAdminRoute = request.nextUrl.pathname.startsWith("/admin")
   const isLoginPage = request.nextUrl.pathname === "/admin/login"
 
+  // Rota protegida sem sessão → login
   if (isAdminRoute && !isLoginPage && !user) {
     const url = request.nextUrl.clone()
     url.pathname = "/admin/login"
     return NextResponse.redirect(url)
   }
 
+  // Já logado acessando login → painel
   if (isLoginPage && user) {
     const url = request.nextUrl.clone()
     url.pathname = "/admin/links"
