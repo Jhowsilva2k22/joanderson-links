@@ -1,65 +1,129 @@
-import Image from "next/image";
+import { createClient } from "@/lib/supabase/server"
+import { ThemeToggle } from "@/components/ThemeToggle"
+import Image from "next/image"
+import type { Metadata } from "next"
 
-export default function Home() {
+export const revalidate = 60
+
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = await createClient()
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("name, bio, avatar_url")
+    .limit(1)
+    .single()
+  return {
+    title: profile?.name ?? "Link in Bio",
+    description: profile?.bio ?? "",
+  }
+}
+
+export default async function PublicPage() {
+  const supabase = await createClient()
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .limit(1)
+    .single()
+
+  const { data: links } = await supabase
+    .from("links")
+    .select("*")
+    .eq("active", true)
+    .order("order_index", { ascending: true })
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--background)" }}>
+        <p style={{ color: "var(--muted-foreground)" }} className="text-sm">Perfil não configurado.</p>
+      </div>
+    )
+  }
+
+  const socialLinks = links?.filter((l) => l.category === "social") ?? []
+  const productLinks = links?.filter((l) => l.category !== "social") ?? []
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="min-h-screen flex flex-col" style={{ background: profile.bg_color || "var(--background)" }}>
+      {/* Foto de capa */}
+      <div className="relative w-full h-48 md:h-64 overflow-hidden">
+        {profile.cover_url ? (
+          <Image src={profile.cover_url} alt="Foto de capa" fill className="object-cover" priority />
+        ) : (
+          <div className="w-full h-full" style={{ background: profile.primary_color || "#0a0a0a" }} />
+        )}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, transparent 40%, " + (profile.bg_color || "#f5f5f4") + " 100%)" }} />
+        <div className="absolute top-4 right-4"><ThemeToggle /></div>
+      </div>
+
+      {/* Conteúdo */}
+      <div className="flex flex-col items-center px-4 -mt-16 pb-16 max-w-sm mx-auto w-full">
+        {/* Avatar */}
+        <div className="relative mb-4">
+          {profile.avatar_url ? (
+            <div className="w-24 h-24 rounded-full overflow-hidden border-4 shadow-lg" style={{ borderColor: profile.bg_color || "#f5f5f4" }}>
+              <Image src={profile.avatar_url} alt={profile.name} width={96} height={96} className="object-cover w-full h-full" priority />
+            </div>
+          ) : (
+            <div className="w-24 h-24 rounded-full border-4 shadow-lg flex items-center justify-center text-2xl font-bold"
+              style={{ borderColor: profile.bg_color || "#f5f5f4", background: profile.primary_color || "#0a0a0a", color: profile.secondary_color || "#ffffff" }}>
+              {profile.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+        </div>
+
+        {/* Nome e bio */}
+        <div className="text-center mb-6 animate-fade-in-up">
+          <h1 className="text-xl font-bold mb-1" style={{ color: profile.primary_color || "var(--foreground)", fontFamily: profile.font_family || "Inter" }}>
+            {profile.name}
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+          {profile.bio && (
+            <p className="text-sm leading-relaxed" style={{ color: profile.secondary_color || "var(--muted-foreground)" }}>
+              {profile.bio}
+            </p>
+          )}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+
+        {/* Redes sociais */}
+        {socialLinks.length > 0 && (
+          <div className="w-full flex flex-col gap-3 mb-6">
+            {socialLinks.map((link) => (
+              <a key={link.id} href={`/api/click/${link.id}`}
+                className="link-item animate-fade-in-up w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all hover:opacity-90 active:scale-[0.98] shadow-sm"
+                style={{ background: profile.primary_color || "#0a0a0a", color: profile.secondary_color || "#ffffff" }}>
+                {link.icon_url && <Image src={link.icon_url} alt="" width={20} height={20} className="rounded" />}
+                <span className="flex-1 text-center">{link.title}</span>
+              </a>
+            ))}
+          </div>
+        )}
+
+        {/* Produtos e serviços */}
+        {productLinks.length > 0 && (
+          <>
+            <div className="w-full mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: profile.secondary_color || "var(--muted-foreground)" }}>Produtos e serviços</p>
+            </div>
+            <div className="w-full flex flex-col gap-3">
+              {productLinks.map((link) => (
+                <a key={link.id} href={`/api/click/${link.id}`}
+                  className="link-item animate-fade-in-up w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all hover:opacity-80 active:scale-[0.98]"
+                  style={{ background: "var(--card)", color: "var(--card-foreground)", border: "1px solid var(--border)" }}>
+                  {link.icon_url ? (
+                    <Image src={link.icon_url} alt="" width={20} height={20} className="rounded" />
+                  ) : (
+                    <div className="w-5 h-5 rounded flex-shrink-0" style={{ background: profile.primary_color || "#0a0a0a" }} />
+                  )}
+                  <span className="flex-1 text-center">{link.title}</span>
+                </a>
+              ))}
+            </div>
+          </>
+        )}
+
+        <p className="mt-12 text-xs" style={{ color: "var(--muted-foreground)" }}>joandersonsilva.com.br</p>
+      </div>
+    </main>
+  )
 }
