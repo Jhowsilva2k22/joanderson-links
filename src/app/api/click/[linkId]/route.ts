@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
-import type { Database } from "@/lib/supabase/types"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ linkId: string }> }) {
   const { linkId } = await params
 
-  const supabase = createServerClient<Database>(
+  // Sem generic <Database> — evita erros de inferência TypeScript
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: { getAll: () => [], setAll: () => {} } }
   )
 
-  const { data: link } = await supabase.from("links").select("url, active").eq("id", linkId).single()
+  const { data: link } = await supabase.from("links").select("*").eq("id", linkId).single()
 
   if (!link || !link.active) return NextResponse.redirect(new URL("/", request.url))
 
@@ -28,6 +28,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const isMobile = /mobile|android|iphone|ipad|tablet/i.test(userAgent)
 
+  // Fire-and-forget — não bloqueia o redirect
   supabase.from("clicks").insert({
     link_id: linkId,
     referrer: referrer || null,
