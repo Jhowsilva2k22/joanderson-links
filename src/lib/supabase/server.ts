@@ -1,12 +1,13 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import type { Database } from "./types"
 
-// Sem generic <Database> — evita erros TypeScript 'never' nas operações de mutação.
-// Tipos são aplicados via cast explícito nos arquivos que consomem os dados.
+// Mantém <Database> no servidor — necessário para tipagem dos cookies.
+// O generic foi removido apenas do client.ts (browser) onde causava never em mutações.
 export async function createClient() {
   const cookieStore = await cookies()
 
-  return createServerClient(
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
